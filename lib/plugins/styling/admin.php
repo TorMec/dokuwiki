@@ -56,14 +56,16 @@ class admin_plugin_styling extends DokuWiki_Admin_Plugin {
      */
     public function form() {
         global $conf;
+        global $config_cascade;
         global $ID;
         global $INPUT;
         define('SIMPLE_TEST', 1); // hack, ideally certain functions should be moved out of css.php
         require_once(DOKU_INC.'lib/exe/css.php');
         $styleini     = css_styleini($conf['template'], true);
         $replacements = $styleini['replacements'];
-        $styles = array('userstyle', 'userprint', 'userfeed', 'userall');
-        $exts = array('.css', '.less');
+        foreach($config_cascade['userstyle'] as $mediatype => $userstyles) {
+                $styles[] = str_replace(DOKU_CONF, '', $userstyles);
+        }
 
         if($this->ispopup) {
             $target = DOKU_BASE.'lib/plugins/styling/popup.php';
@@ -98,18 +100,18 @@ class admin_plugin_styling extends DokuWiki_Admin_Plugin {
                 $content = array();
                 echo '<tr>';
                 echo '<td>';
-                echo '<label for="sty__'.hsc($style).'">'.$this->getLang($style).'</label><br />';
-                foreach($exts as $ext) {
-                    if(file_exists($dirname.$style.$ext)) {
-                        $content = file($dirname.$style.$ext);
-                        echo '<input type="radio" name="sty['.hsc($style).'][extension]" value="'.hsc($ext).'" checked>'.$ext.'<br />';
+                echo '<label for="sty__'.hsc(pathinfo($style[0], PATHINFO_FILENAME)).'">'.$this->getLang(pathinfo($style[0], PATHINFO_FILENAME)).'</label><br />';
+                foreach($style as $basename) {
+                    if(file_exists($dirname.$basename)) {
+                        $content = file($dirname.$basename);
+                        echo '<input type="radio" name="sty['.hsc(pathinfo($basename, PATHINFO_FILENAME)).'][extension]" value="'.hsc('.'.pathinfo($basename, PATHINFO_EXTENSION)).'" checked>'.pathinfo($basename, PATHINFO_EXTENSION).'<br />';
                     } else {
-                        echo '<input type="radio" name="sty['.hsc($style).'][extension]" value="'.hsc($ext).'">'.$ext.'<br>';
+                        echo '<input type="radio" name="sty['.hsc(pathinfo($basename, PATHINFO_FILENAME)).'][extension]" value="'.hsc('.'.pathinfo($basename, PATHINFO_EXTENSION)).'">'.pathinfo($basename, PATHINFO_EXTENSION).'<br />';
                     }
                 }
                 echo '</td>';
                 echo '<td>';
-                echo '<textarea name="sty['.hsc($style).'][content]" id="sty__'.hsc($style).'" rows="4" cols="40">';
+                echo '<textarea name="sty['.hsc(pathinfo($style[0], PATHINFO_FILENAME)).'][content]" id="sty__'.hsc(pathinfo($style[0], PATHINFO_FILENAME)).'" rows="4" cols="40">';
                 foreach($content as $line) {
                     echo $line;
                 }
