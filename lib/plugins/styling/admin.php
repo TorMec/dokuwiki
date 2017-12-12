@@ -63,8 +63,8 @@ class admin_plugin_styling extends DokuWiki_Admin_Plugin {
         require_once(DOKU_INC.'lib/exe/css.php');
         $styleini     = css_styleini($conf['template'], true);
         $replacements = $styleini['replacements'];
-        foreach($config_cascade['userstyle'] as $mediatype => $userstyles) {
-                $styles[] = str_replace(DOKU_CONF, '', $userstyles);
+        foreach($config_cascade['userstyle'] as $mediatype => $styles) {
+                $userstyles[$mediatype] = str_replace(DOKU_CONF, '', $styles);
         }
 
         if($this->ispopup) {
@@ -92,7 +92,7 @@ class admin_plugin_styling extends DokuWiki_Admin_Plugin {
                 echo '</tr>';
             }
 
-            foreach($styles as $style) {
+            foreach($userstyles as $mediatype => $styles) {
                 $dirname = DOKU_CONF;
                 if($INPUT->str('run') == 'preview') {
                     $dirname = $conf['cachedir'].'/';
@@ -100,18 +100,18 @@ class admin_plugin_styling extends DokuWiki_Admin_Plugin {
                 $content = array();
                 echo '<tr>';
                 echo '<td>';
-                echo '<label for="sty__'.hsc(pathinfo($style[0], PATHINFO_FILENAME)).'">'.$this->getLang(pathinfo($style[0], PATHINFO_FILENAME)).'</label><br />';
-                foreach($style as $basename) {
+                echo '<label for="sty__'.hsc($mediatype).'">'.$this->getLang($mediatype).'</label><br />';
+                foreach($styles as $basename) {
                     if(file_exists($dirname.$basename)) {
                         $content = file($dirname.$basename);
-                        echo '<input type="radio" name="sty['.hsc(pathinfo($basename, PATHINFO_FILENAME)).'][extension]" value="'.hsc('.'.pathinfo($basename, PATHINFO_EXTENSION)).'" checked>'.pathinfo($basename, PATHINFO_EXTENSION).'<br />';
+                        echo '<input type="radio" name="sty['.hsc($mediatype).'][extension]" value="'.hsc(pathinfo($basename, PATHINFO_EXTENSION)).'" checked>'.pathinfo($basename, PATHINFO_EXTENSION).'<br />';
                     } else {
-                        echo '<input type="radio" name="sty['.hsc(pathinfo($basename, PATHINFO_FILENAME)).'][extension]" value="'.hsc('.'.pathinfo($basename, PATHINFO_EXTENSION)).'">'.pathinfo($basename, PATHINFO_EXTENSION).'<br />';
+                        echo '<input type="radio" name="sty['.hsc($mediatype).'][extension]" value="'.hsc(pathinfo($basename, PATHINFO_EXTENSION)).'">'.pathinfo($basename, PATHINFO_EXTENSION).'<br />';
                     }
                 }
                 echo '</td>';
                 echo '<td>';
-                echo '<textarea name="sty['.hsc(pathinfo($style[0], PATHINFO_FILENAME)).'][content]" id="sty__'.hsc(pathinfo($style[0], PATHINFO_FILENAME)).'" rows="4" cols="40">';
+                echo '<textarea name="sty['.hsc($mediatype).'][content]" id="sty__'.hsc($mediatype).'" rows="4" cols="40">';
                 foreach($content as $line) {
                     echo $line;
                 }
@@ -250,20 +250,26 @@ class admin_plugin_styling extends DokuWiki_Admin_Plugin {
      * @param bool $remove if true, force removal files otherwise only if they have empty content
      */
     protected function replacecss($dirname, $remove = false) {
+        global $config_cascade;
         global $INPUT;
-        foreach($INPUT->arr('sty') as $key => $val) {
-            if(!isset($val[extension])) {
-                $val[extension] = '.css';
+        foreach($INPUT->arr('sty') as $mediatype => $values) {
+            if(!isset($values['extension'])) {
+                $values['extension'] = 'css';
             }
-            if(empty($val[content]) || $remove) {
-                io_rmdir($dirname.$key.$val[extension], true);
+            foreach($config_cascade['userstyle'][$mediatype] as $styles) {
+                if(pathinfo($styles, PATHINFO_EXTENSION) == $values['extension']) {
+                    $values['style'] = str_replace(array(DOKU_CONF, '.'.$values['extension']), '', $styles);
+                }
+            }
+            if(empty($values['content']) || $remove) {
+                io_rmdir($dirname.$values['style'].'.'.$values['extension'], true);
             } else {
-                io_saveFile($dirname.$key.$val[extension], $val[content]);
+                io_saveFile($dirname.$values['style'].'.'.$values['extension'], $values['content']);
                 // if the extension is changed, delete the old version
-                if($val[extension] == '.css') {
-                    io_rmdir($dirname.$key.'.less', true);
+                if($values['extension'] == 'css') {
+                    io_rmdir($dirname.$values['style'].'.less', true);
                 } else {
-                    io_rmdir($dirname.$key.'.css', true);
+                    io_rmdir($dirname.$values['style'].'.css', true);
                 }
             }
         }
